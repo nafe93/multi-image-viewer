@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
+    "module": "commonjs",
     "outDir": "out",
     "rootDir": "src",
     "lib": ["ES2022"],
     "sourceMap": true,
     "strict": true,
     "types": ["mocha", "node"]
-  }
+  },
+  "include": ["src"]
 }

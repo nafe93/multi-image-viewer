@@ -8,6 +8,9 @@ let imagesByKey: Map<string, string[]> = new Map();
 let keys: string[] = [];
 let panel: vscode.WebviewPanel | null = null;
 
+// по умолчанию — твоя регулярка
+let currentRegex: RegExp | null = /(\d{5,8})(?=\D*$)/;
+
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('multi-image-viewer.openFolders', async () => {
@@ -46,6 +49,27 @@ export function activate(context: vscode.ExtensionContext) {
             if (keys.length === 0) return;
             currentIndex = (currentIndex - 1 + keys.length) % keys.length;
             refreshPanel();
+        }),
+
+        vscode.commands.registerCommand('multi-image-viewer.setRegex', async () => {
+            const input = await vscode.window.showInputBox({
+                prompt: "Enter custom regex (leave empty to use full filename)",
+                value: currentRegex?.source ?? ""
+            });
+            if (input === undefined) return; // Esc
+            if (input.trim() === "") {
+                currentRegex = null; // отключаем, будет всё имя
+                vscode.window.showInformationMessage("Regex cleared, using full filename");
+            } else {
+                try {
+                    currentRegex = new RegExp(input);
+                    vscode.window.showInformationMessage(`Regex updated: ${input}`);
+                } catch (e: any) {
+                    vscode.window.showErrorMessage(`Invalid regex: ${e.message}`);
+                }
+            }
+            buildImageMap();
+            refreshPanel();
         })
     );
 }
@@ -83,8 +107,6 @@ async function pickFolders() {
         } else if (choice.label.startsWith("❌ Remove ")) {
             const toRemove = choice.label.replace("❌ Remove ", "");
             selectedFolders = selectedFolders.filter(f => f !== toRemove);
-        } else {
-            // выбрали существующую — ничего не делаем
         }
 
         console.log("Current selected folders:", selectedFolders);
@@ -99,16 +121,20 @@ async function pickFolders() {
 function buildImageMap() {
     try {
         imagesByKey.clear();
-        const regex = /(\d{5,8})(?=\D*$)/;
 
         for (const folder of selectedFolders) {
             const files = fs.readdirSync(folder)
                 .filter(f => /\.(png|jpg|jpeg|bmp|tiff|webp)$/i.test(f));
 
             for (const f of files) {
-                const match = f.match(regex);
-                if (!match) continue;
-                const key = match[1];
+                let key: string;
+                if (currentRegex) {
+                    const match = f.match(currentRegex);
+                    key = match ? match[1] : path.parse(f).name;
+                } else {
+                    key = path.parse(f).name;
+                }
+
                 const full = path.join(folder, f);
 
                 if (!imagesByKey.has(key)) {
@@ -165,6 +191,8 @@ function openImageViewer() {
                     buildImageMap();
                     refreshPanel();
                 });
+            } else if (msg.command === "setRegex") {
+                vscode.commands.executeCommand('multi-image-viewer.setRegex');
             }
         } catch (err: any) {
             vscode.window.showErrorMessage(`Error in panel handler: ${err.message}`);
@@ -197,13 +225,16 @@ function refreshPanel() {
     }).join("");
 
     const folderList = selectedFolders.map(f => `<li>${f}</li>`).join("");
+    const regexInfo = currentRegex ? `/${currentRegex.source}/` : "Using full filename";
 
     panel.webview.html = `
         <html>
         <body>
             <h3>Selected folders:</h3>
             <ul>${folderList}</ul>
+            <p><b>Current regex:</b> ${regexInfo}</p>
             <button id="addFolderBtn">Manage Folders</button>
+            <button id="setRegexBtn">Set Regex</button>
 
             <div class="container">${imgTags}</div>
             <div class="controls">
@@ -223,6 +254,7 @@ function refreshPanel() {
                     vscode.postMessage({ command: "jump", value: val });
                 });
                 document.getElementById("addFolderBtn").addEventListener("click", () => vscode.postMessage({ command: "addFolder" }));
+                document.getElementById("setRegexBtn").addEventListener("click", () => vscode.postMessage({ command: "setRegex" }));
                 window.addEventListener("keydown", (e) => {
                     if (e.key === "ArrowLeft") vscode.postMessage({ command: "prev" });
                     if (e.key === "ArrowRight") vscode.postMessage({ command: "next" });

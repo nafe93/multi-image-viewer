@@ -13,7 +13,8 @@
   "activationEvents": [
     "onCommand:multi-image-viewer.openFolders",
     "onCommand:multi-image-viewer.nextImage",
-    "onCommand:multi-image-viewer.prevImage"
+    "onCommand:multi-image-viewer.prevImage",
+    "onCommand:multi-image-viewer.setRegex"
   ],
   "main": "./out/extension.js",
   "repository": {
@@ -24,19 +25,24 @@
     "commands": [
       {
         "command": "multi-image-viewer.openFolders",
-        "title": "Open Image Folders"
+        "title": "Multi Image Viewer: Open Folders"
       },
       {
         "command": "multi-image-viewer.nextImage",
-        "title": "Next Image"
+        "title": "Multi Image Viewer: Next Image"
       },
       {
         "command": "multi-image-viewer.prevImage",
-        "title": "Previous Image"
+        "title": "Multi Image Viewer: Previous Image"
+      },
+      {
+        "command": "multi-image-viewer.setRegex",
+        "title": "Multi Image Viewer: Set Regex"
       }
     ]
   },
   "scripts": {
+    "clean": "rm -rf out",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
